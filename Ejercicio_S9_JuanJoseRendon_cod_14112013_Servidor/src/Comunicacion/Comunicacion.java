@@ -32,6 +32,7 @@ public class Comunicacion extends Thread {
 	private DatagramPacket pack;
 	private boolean agregarUsuario = false;
 	XML root;
+	XML[] children;
 	PApplet app;
 
 	public Comunicacion(PApplet p) {
@@ -58,6 +59,16 @@ public class Comunicacion extends Thread {
 			System.out.println("... fue creado");
 		}
 
+		///////////////// Realiza la persistencia con el xml
+		children = root.getChildren("usuario");
+
+		for (int i = 0; i < children.length; i++) {
+			String nombre = children[i].getString("nombre");
+			String contraseña = children[i].getString("contraseña");
+
+			usuarios.add(new Usuario(nombre, contraseña));
+		}
+
 		try {
 			socket = new DatagramSocket(puerto);
 		} catch (SocketException e) {
@@ -79,8 +90,8 @@ public class Comunicacion extends Thread {
 		}
 	}
 
-	public void enviar(String o, int puerto, InetAddress direccion) {
-		byte[] datos = o.getBytes();
+	public void enviar(Object msj, int puerto, InetAddress direccion) {
+		byte[] datos = serializar(msj);
 
 		try {
 			DatagramPacket enviar = new DatagramPacket(datos, datos.length, direccion, puerto);
@@ -100,7 +111,7 @@ public class Comunicacion extends Thread {
 		try {
 			System.out.println("esperando");
 			socket.receive(pack);
-			int purtoTemporal = pack.getPort();
+			int puertoTemporal = pack.getPort();
 			InetAddress direccionTemporal = pack.getAddress();
 			System.out.println("recibi");
 			// ------Deserializar
@@ -140,18 +151,26 @@ public class Comunicacion extends Thread {
 			// -------Fin registro
 			if (msj.getTipo().equals("Ingreso")) {
 				if (usuarios.size() < 1) {
-					enviar("false", purtoTemporal, direccionTemporal);
+					msj = new Mensaje("false", "", "", "", "");
+					enviar(msj, puertoTemporal, direccionTemporal);
 					System.out.println("no hay usuarios registrados");
 				}
 				for (Usuario u : usuarios) {
 					if (u.getUsuario().equals(msj.getNombre()) && u.getContra().equals(msj.getContra())) {
-						enviar("true", purtoTemporal, direccionTemporal);
+						msj = new Mensaje("true", "", "", "", "");
+						enviar(msj, puertoTemporal, direccionTemporal);
 						System.out.println("Registrado");
 					} else {
-						enviar("false", purtoTemporal, direccionTemporal);
+						msj = new Mensaje("false", "", "", "", "");
+						enviar(msj, puertoTemporal, direccionTemporal);
 						System.out.println("No registrado");
 					}
 				}
+			}
+			// --------------enviar datos del usuario
+			if (msj.getTipo().equals("datos")) {
+				enviarInfoUsuario(msj, puertoTemporal, direccionTemporal);
+
 			}
 
 			// ----------------guardar XML
@@ -179,7 +198,40 @@ public class Comunicacion extends Thread {
 		XML newChild = root.addChild("usuario");
 		newChild.setString("nombre", ms.getNombre());
 		newChild.setString("contraseña", ms.getContra());
+		newChild.setString("carrera", ms.getCarrera());
+		newChild.setString("edad", ms.getEdad());
 
+	}
+
+	public void enviarInfoUsuario(Mensaje ms, int puerto, InetAddress direccion) {
+		children = root.getChildren("usuario");
+
+		for (int i = 0; i < children.length; i++) {
+
+			String nombre = children[i].getString("nombre");
+			if (nombre.equals(ms.getNombre())) {
+				String carrera = children[i].getString("carrera");
+				String edad = children[i].getString("edad");
+
+				msj = new Mensaje("resDatos", nombre, "", carrera, edad);
+				enviar(msj, puerto, direccion);
+
+			}
+			// .equals(ms.getNombre())
+
+		}
+	}
+
+	public byte[] serializar(Object param) {
+		ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+		try {
+			ObjectOutputStream os = new ObjectOutputStream(bytes);
+			os.writeObject(param);
+			os.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return bytes.toByteArray();
 	}
 
 	// ///////////////////

@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <usuarios>
-  <usuario contraseña="1" nombre="1"/>
+  <usuario carrera="DMI" contraseña="123" edad="19" nombre="juan"/>
+  <usuario carrera="Economia" contraseña="123" edad="20" nombre="jose"/>
 </usuarios>
